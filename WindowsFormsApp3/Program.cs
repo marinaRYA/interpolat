@@ -32,46 +32,93 @@ namespace WindowsFormsApp3
             }
             return intp;
         }
-        static float u_cal(float u, int n)
-        {
-            float temp = u;
-            for (int i = 1; i < n; i++)
-                temp = temp * (u + i);
-            return temp;
-        }
-
-        // Calculating factorial of given n
-        static int fact(int n)
-        {
-            int f = 1;
-            for (int i = 2; i <= n; i++)
-                f *= i;
-            return f;
-        }
-
-        public float newtonInterpolation(float value)
+        
+        public float newtonInterpolation(float t)
         {
             int n = 5;
-            float[,] y1=new float[n,n];
-            for (int i = 0; i < n; i++) y1[i,0] = y[i];
-            for (int i = 1; i < n; i++)
+            float res = y[0], F, den;
+            int i, j, k;
+            for (i = 1; i < n; i++)
             {
-                for (int j = n - 1; j >= i; j--)
-                    y1[j, i] = y1[j, i - 1] - y1[j - 1, i - 1];
+                F = 0;
+                for (j = 0; j <= i; j++)
+                {
+                    den = 1;
+                    for (k = 0; k <= i; k++)
+                    {
+                        if (k != j) den *= (x[j] - x[k]);
+                    }
+                    F += y[j] / den;
+                }
+                for (k = 0; k < i; k++) F *= (t - x[k]);
+                res += F;
             }
-
-            // Initializing u and sum
-            float sum = y1[n - 1, 0];
-            float u = (value - x[n - 1]) / (x[1] - x[0]);
-            for (int i = 1; i < n; i++)
-            {
-                sum = sum + (u_cal(u, i) * y1[n - 1, i]) / fact(i);
-            }
-            return sum;
+            return res;
         }
-        public float Interpolation(float xp)
+        static float Power(float val, int p)
         {
-            return 1;
+            if (p == 0) return 1;
+            if (p > 1) val *= Power(val, p - 1);
+            return val;
+        }
+        public float InterpolationQu(float xp,int K)
+        {
+            int n = 10;
+            int pts = 5;
+            int k;
+            float s, t, M;
+            float[] a = new float[n];
+            float[] b = new float[n];
+            float[,] sums = new float[n, n];
+            //упорядочиваем узловые точки по возрастанию абсцисс
+            for (int i = 0; i < pts; i++)
+            {
+                for (int j = i; j >= 1; j--)
+                    if (x[j] < x[j - 1])
+                    {
+                        t = x[j - 1]; x[j - 1] = x[j]; x[j] = t;
+                        t = y[j - 1]; y[j - 1] = y[j]; y[j] = t;
+                    }
+            }
+            //заполняем коэффициенты системы уравнений
+            for (int i = 0; i < K + 1; i++)
+            {
+                for (int j = 0; j < K + 1; j++)
+                {
+                    sums[i,j] = 0;
+                    for (k = 0; k < pts; k++)
+                        sums[i,j] +=Power(x[k], i + j);
+                }
+            }
+            //заполняем столбец свободных членов
+            for (int i = 0; i < K + 1; i++)
+            {
+                b[i] = 0;
+                for (k = 0; k < pts; k++)
+                    b[i] += Power(x[k], i) * y[k];
+            }
+            //применяем метод Гаусса для приведения матрицы системы к треугольному виду
+            for (k = 0; k < K + 1; k++)
+            {
+                for (int i = k + 1; i < K + 1; i++)
+                {
+                    M = sums[i,k] / sums[k,k];
+                    for (int j = k; j < K + 1; j++)
+                        sums[i, j] -= M * sums[k, j];
+                    b[i] -= M * b[k];
+                }
+            }
+            //вычисляем коэффициенты аппроксимирующего полинома
+            for (int i = K; i >= 0; i--)
+            {
+                s = 0;
+                for (int j = i; j < K + 1; j++)
+                    s += sums[i, j] * a[j];
+                a[i] = (b[i] - s) / sums[i, i];
+            }
+            float res=0;
+            for (int j = 0; j <= K; j++) res += a[j] * Power(xp, j);
+            return res;
         }
 
 
